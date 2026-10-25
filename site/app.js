@@ -16,6 +16,7 @@ let wakeLock;
 let remoteStream;
 let videoStartTimeout;
 let hostNeedsAudio = false;
+let lastJoinedCode;
 function announceHostAudio() {
   if (mode !== 'host' || !room?.accepted) return;
   room.broadcast(game.audioBlocked ? 'The host needs to tap “Enable game sound” on their phone to start the game.' : 'Connected. Player two controls the helper.',game.audioBlocked ? 'audio-blocked' : 'playing');
@@ -47,6 +48,7 @@ function showPlayer() {
   $('#levels-button').hidden = mode === 'guest';
   $('#remote-video').hidden = mode !== 'guest'; $('#emulator').hidden = mode === 'guest';
   $('#sound-button').textContent = mode === 'guest' ? 'Enable sound' : 'Sound on';
+  $('#retry-button').hidden = true;
   controls.enable(true); wake();
 }
 function busyLobby(value) {
@@ -66,12 +68,13 @@ function makeRoom() {
       if (mode !== 'guest') return;
       if (phase) hostNeedsAudio = phase === 'audio-blocked';
       if (hostNeedsAudio) showHostAudioWait();
-      else if (!remoteStream || $('#remote-video').readyState < 2) screenMessage('Room connected. Waiting for game…',message);
+      else if (!remoteStream || $('#remote-video').readyState < 2) screenMessage(instance.accepted ? 'Room connected. Waiting for game…' : 'Connecting to the host…',message);
       else if (phase === 'playing') $('#screen-message').hidden = true;
     },
     error: message => {
       if (room === instance) {
         error(message); connection('Connection needs attention');
+        if (mode === 'guest') $('#retry-button').hidden = false;
         if (mode === 'guest' && !remoteStream) screenMessage('Could not connect to the game.',message);
       }
     },
@@ -99,7 +102,7 @@ function makeRoom() {
       status('You’re player two. Ask Kirby to create a helper with A, then jump in.','success');
       if (hostNeedsAudio) showHostAudioWait();
     },
-    mediaClosed: () => { if (room === instance && mode === 'guest') screenMessage('Game stream stopped.','The host may have left. Leave and join again to reconnect.'); },
+    mediaClosed: () => { if (room === instance && mode === 'guest') { $('#retry-button').hidden = false; screenMessage('Game stream stopped.','Tap Retry to reconnect to the host.'); } },
     disconnected: () => {
       if (room !== instance) return;
       clearTimeout(videoStartTimeout);
@@ -108,7 +111,7 @@ function makeRoom() {
       connection(mode === 'host' ? 'Waiting for player two' : 'Disconnected');
       $('#latency').textContent = 'DISCONNECTED';
       if (mode === 'host') { game.stopCapture(); status('Player two left. You can keep playing; your room link still works.'); }
-      else { $('#remote-video').srcObject = null; remoteStream = null; screenMessage('The other player disconnected.','Leave, then join the room again when your host is ready.'); status('The room connection closed. Leave to join again.','error'); }
+      else { $('#remote-video').srcObject = null; remoteStream = null; $('#retry-button').hidden = false; screenMessage('The other player disconnected.','Tap Retry when your host is ready.'); status('The room connection closed. Tap Retry to join again.','error'); }
     },
     latency: ms => { if (room === instance) $('#latency').textContent = `${ms} MS · ROUND TRIP`; },
   }, networkSettings);
@@ -117,6 +120,7 @@ function makeRoom() {
 async function launch(modeToUse, code) {
   if (busy) return;
   busyLobby(true); mode = modeToUse; showPlayer();
+  if (mode === 'guest') lastJoinedCode = code;
   try {
     if (mode === 'guest' || mode === 'host') {
       connection('Opening room…');
@@ -150,6 +154,7 @@ async function launch(modeToUse, code) {
     connection('Could not start');
     screenMessage('Something interrupted the adventure.',e.message);
     error(e);
+    if (mode === 'guest') $('#retry-button').hidden = false;
     if (!game.startPromise) {
       mode = 'lobby'; document.body.classList.remove('playing'); $('#lobby').hidden = false; $('#play-area').hidden = true; controls.enable(false);
     }
@@ -157,6 +162,13 @@ async function launch(modeToUse, code) {
 }
 $('#host-button').addEventListener('click',() => launch('host'));
 $('#solo-button').addEventListener('click',() => launch('solo'));
+$('#retry-button').addEventListener('click',() => {
+  if (busy || mode !== 'guest' || !lastJoinedCode) return;
+  controls.clear(); const previousRoom=room;room=null;previousRoom?.close();
+  clearTimeout(videoStartTimeout);remoteStream=null;hostNeedsAudio=false;
+  $('#remote-video').pause();$('#remote-video').srcObject=null;$('#resume-video').hidden=true;
+  launch('guest',lastJoinedCode);
+});
 $('#join-form').addEventListener('submit',e => {
   e.preventDefault();
   const code = parseRoomCode($('#room-code').value);

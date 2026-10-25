@@ -32,6 +32,10 @@ Both players also have multitouch controls and support for one standard-mapped U
 
 Use landscape in a current Android Chrome or iOS Safari browser. Touch controls sit to the left and right of the game. The guest taps the audio prompt to allow playback. Android can request fullscreen and orientation lock where available. iPhone users rotate manually and can use Safari's **Add to Home Screen** for more space. The app requests a screen wake lock where supported.
 
+On Android 17 or newer, allow **Nearby devices / Local network** in **Android Settings > Apps > your browser > Permissions**. This is separate from the browser's site permissions. A denied Android permission can block same-Wi-Fi multiplayer while ordinary internet access still works. This was confirmed on the companion Mario game using a physical Pixel 9; the permission applies to Chrome across both games. The website cannot grant this system permission for you. See [Android's local-network documentation](https://developer.android.com/privacy-and-security/local-network-permission).
+
+Connection errors distinguish an unavailable room from a failed direct connection, and guests can use **Retry** without retyping the room code. Stale connections release the guest slot after missed heartbeats. A stream that arrives before its welcome message no longer causes a false missing-stream timeout.
+
 If the host browser suspends audio, it shows **Tap to enable game sound**. Room/media setup does not wait on audio permission, but the emulator may need that tap before it produces game frames. The guest sees an instruction asking the host to tap, and play then starts in the same room. Connection failures appear in the guest's game screen instead of leaving the initial waiting message visible.
 
 Desktop Chromium and phone-sized layouts are covered by automated tests. Actual Android/iPhone hardware and cross-carrier networks still need device testing. This is an online site, not an offline PWA.
