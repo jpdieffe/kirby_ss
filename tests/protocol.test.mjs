@@ -1,13 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newRoomCode, parseRoomCode, validInput, applyMask, InputSources, gamepadMask } from '../site/protocol.js';
+import { ROOM_ALPHABET, newRoomCode, parseRoomCode, validInput, applyMask, InputSources, gamepadMask } from '../site/protocol.js';
 
 test('room invitations round trip without confusing letters or malformed paths',() => {
   const code = newRoomCode();
-  assert.equal(code.length,10);
+  assert.equal(code.length,2);
   assert.equal(parseRoomCode(`https://jpdieffe.github.io/kirby_ss/#room=${code}`),code);
-  assert.equal(parseRoomCode(code.slice(0,5).toLowerCase()+'-'+code.slice(5)),code);
+  assert.equal(parseRoomCode(` ${code.toLowerCase()} `),code);
+  assert.equal(parseRoomCode('ABCDE-FGHJK'),'ABCDEFGHJK');
   for (const invalid of ['','javascript:alert(1)','../../abcd','ABCDEFGHIJ','https://example.com/#not-a-room','123']) assert.equal(parseRoomCode(invalid),null);
+});
+test('room generation skips previously occupied codes and detects exhaustion',() => {
+  const excluded = new Set([...ROOM_ALPHABET].flatMap(a => [...ROOM_ALPHABET].map(b => a+b)));
+  excluded.delete('K7');
+  assert.equal(newRoomCode(excluded),'K7');
+  excluded.add('K7');
+  assert.throws(() => newRoomCode(excluded),/No room codes/);
 });
 test('network input accepts only bounded SNES button masks and sequence numbers',() => {
   assert.equal(validInput({type:'input',seq:0,mask:4095}),true);

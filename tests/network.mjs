@@ -20,6 +20,7 @@ try {
   await host.locator('#host-button').click();
   await host.waitForFunction(()=>window.EJS_emulator?.started,{},{timeout:95000});
   const code=(await host.locator('#room-label').textContent()).replace('ROOM ','').replace('-','');
+  assert.equal(code.length,2);
   console.log('Room created',code);
   await host.evaluate(()=>{
     window.receivedInputs=[];

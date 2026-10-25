@@ -7,7 +7,7 @@ Play at **https://jpdieffe.github.io/kirby_ss/** once the Pages deployment compl
 ## Play together
 
 1. The host selects **Create a room**, then **Invite** to copy or share the room link.
-2. A friend opens that link and selects **Join**, or enters the ten-character room code.
+2. A friend opens that link and selects **Join**, or enters the two-character room code (for example, `K7`). Codes are case-insensitive. Existing ten-character invitations still work for older rooms.
 3. The host presses **Start** to pass the intro/title screen and chooses an adventure. Kirby must inhale an enemy, gain its ability, then press **A** to create a helper. The guest controls the helper on SNES controller port two.
 4. Keep the host's tab visible. Switching away pauses the emulator; leaving ends the room. A disconnected guest can rejoin using the same code while the host stays connected.
 
@@ -44,7 +44,7 @@ This implements reliable level selection through captured states, not arbitrary 
 
 ## Networking
 
-GitHub Pages serves the static app. PeerJS 1.5.5 uses its public signaling service for room discovery; signaling is not hosted on GitHub Pages. Default STUN servers discover direct routes. Room codes are random, and each room admits only one guest. Treat the invite as access to the room.
+GitHub Pages serves the static app. PeerJS 1.5.5 uses its public signaling service for room discovery; signaling is not hosted on GitHub Pages. Default STUN servers discover direct routes. Room codes use two letters/digits from an alphabet without ambiguous characters. Occupied codes are retried automatically, up to 20 distinct attempts, and each room admits only one guest. These short codes identify rooms; they are not passwords.
 
 Some carrier networks, VPNs, and restrictive NATs cannot connect directly. **Help → Connection settings** accepts an optional TURN URL, username, and credential, and a custom secure PeerServer hostname/port/path. Configure these before creating/joining a room on both browsers. TURN relays the encrypted WebRTC traffic and is no longer a purely direct route. No relay is bundled or guaranteed by the public signaling service. Connection settings remain in tab memory; no credentials are committed or stored by this app.
 

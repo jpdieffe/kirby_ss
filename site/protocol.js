@@ -2,8 +2,15 @@ export const PROTOCOL = 1;
 export const BUTTON_COUNT = 12;
 export const ALL_BUTTONS = (1 << BUTTON_COUNT) - 1;
 export const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-export function newRoomCode() {
-  return Array.from(crypto.getRandomValues(new Uint8Array(10)), n => ROOM_ALPHABET[n % ROOM_ALPHABET.length]).join('');
+export function newRoomCode(excluded = new Set()) {
+  const size = ROOM_ALPHABET.length;
+  const start = crypto.getRandomValues(new Uint16Array(1))[0] % (size * size);
+  for (let offset = 0; offset < size * size; offset++) {
+    const index = (start + offset) % (size * size);
+    const code = ROOM_ALPHABET[Math.floor(index / size)] + ROOM_ALPHABET[index % size];
+    if (!excluded.has(code)) return code;
+  }
+  throw new Error('No room codes are available. Please try again shortly.');
 }
 export function parseRoomCode(value) {
   let code = value.trim();
@@ -11,7 +18,8 @@ export function parseRoomCode(value) {
     try { code = new URLSearchParams(new URL(code).hash.slice(1)).get('room') || ''; } catch { return null; }
   }
   code = code.toUpperCase().replace(/[\s-]/g, '');
-  return code.length === 10 && [...code].every(c => ROOM_ALPHABET.includes(c)) ? code : null;
+  // Keep existing invitations usable while older hosts still have a tab open.
+  return [2, 10].includes(code.length) && [...code].every(c => ROOM_ALPHABET.includes(c)) ? code : null;
 }
 export function validInput(message) {
   return message?.type === 'input' && Number.isSafeInteger(message.seq) && message.seq >= 0 &&

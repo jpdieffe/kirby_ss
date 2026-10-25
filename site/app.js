@@ -83,7 +83,7 @@ async function launch(modeToUse, code) {
       const instance = makeRoom();
       const roomCode = await instance.open(mode === 'host',code);
       if (instance !== room) return;
-      $('#room-label').textContent = `ROOM ${roomCode.slice(0,5)}-${roomCode.slice(5)}`;
+      $('#room-label').textContent = `ROOM ${roomCode}`;
       if (mode === 'host') {
         $('#invite-button').hidden = false;
         connection('Waiting for player two');
@@ -119,7 +119,7 @@ $('#solo-button').addEventListener('click',() => launch('solo'));
 $('#join-form').addEventListener('submit',e => {
   e.preventDefault();
   const code = parseRoomCode($('#room-code').value);
-  if (!code) { status('Enter the 10-character room code, or paste the full invite link.','error'); $('#room-code').focus(); return; }
+  if (!code) { status('Enter the 2-character room code, or paste the full invite link.','error'); $('#room-code').focus(); return; }
   launch('guest',code);
 });
 $('#invite-button').addEventListener('click',guard(async () => {

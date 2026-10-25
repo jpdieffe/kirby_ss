@@ -22,7 +22,19 @@ export class Room {
     if (this.settings.turn) iceServers.push({urls:this.settings.turn,username:this.settings.username,credential:this.settings.credential});
     const options = {debug:0,config:{iceServers}};
     if (this.settings.host) Object.assign(options, {host:this.settings.host,port:this.settings.port || 443,path:this.settings.path || '/',secure:true});
-    this.peer = new window.Peer(host ? PREFIX + this.code : undefined, options);
+    const attempted = new Set();
+    for (let attempt = 0; ; attempt++) {
+      attempted.add(this.code);
+      try { await this.reservePeer(host ? PREFIX + this.code : undefined, options); break; }
+      catch (error) {
+        this.peer?.destroy();
+        if (this.closed || !host || error.type !== 'unavailable-id') throw error;
+        if (attempt >= 19) throw new Error('Could not find a free room code. Please try again shortly.');
+        this.code = newRoomCode(attempted);
+      }
+    }
+    if (this.closed) return;
+    this.peer.on('error', error => this.emit('error', messageFor(error)));
     this.peer.on('connection', connection => {
       if (!this.isHost || this.connection) { connection.on('open', () => { connection.send({type:'busy'}); setTimeout(() => connection.close(), 100); }); return; }
       this.attach(connection);
@@ -39,16 +51,6 @@ export class Room {
       if (!this.closed) { this.emit('status', 'Room service disconnected; reconnecting…'); this.peer.reconnect(); }
     });
     this.peer.on('close', () => { if (!this.closed) this.emit('error','The room closed. Create or join a new room.'); });
-    await new Promise((resolve, reject) => {
-      let opened = false;
-      const timeout = setTimeout(() => reject(new Error('The room service did not respond. Check your connection and try again.')), 20000);
-      this.peer.on('open', () => { clearTimeout(timeout); if (!opened) { opened = true; resolve(); } });
-      this.peer.on('error', error => {
-        clearTimeout(timeout);
-        if (!opened) reject(new Error(messageFor(error))); else this.emit('error',messageFor(error));
-      });
-    });
-    if (this.closed) return;
     if (!host) this.attach(this.peer.connect(PREFIX + code, {reliable:true,serialization:'json',metadata:{protocol:PROTOCOL}}));
     this.timer = setInterval(() => {
       if (!this.isHost && this.accepted) this.send({type:'input',mask:document.hidden ? 0 : this.mask,seq:this.seq++});
@@ -56,6 +58,23 @@ export class Room {
     }, 50);
     this.pingTimer = setInterval(() => this.send({type:'ping',at:Date.now()}), 2000);
     return this.code;
+  }
+  reservePeer(id, options) {
+    const peer = this.peer = new window.Peer(id, options);
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        clearTimeout(timeout);
+        peer.off('open', onOpen); peer.off('error', onError); peer.off('close', onClose);
+        this.cancelOpen = null;
+      };
+      const fail = error => { cleanup(); reject(error); };
+      const onOpen = () => { cleanup(); resolve(); };
+      const onError = error => fail(Object.assign(new Error(messageFor(error)), {type:error.type}));
+      const onClose = () => fail(new Error('The room closed before connecting. Please try again.'));
+      const timeout = setTimeout(() => fail(new Error('The room service did not respond. Check your connection and try again.')), 20000);
+      this.cancelOpen = () => fail(new Error('Room creation canceled.'));
+      peer.on('open', onOpen); peer.on('error', onError); peer.on('close', onClose);
+    });
   }
   attach(connection) {
     this.connection = connection; this.accepted = false; this.lastSeq = -1;
@@ -111,6 +130,7 @@ export class Room {
   }
   close() {
     this.setInput(0); this.closed = true;
+    this.cancelOpen?.();
     clearInterval(this.timer); clearInterval(this.pingTimer); clearTimeout(this.connectTimeout); clearTimeout(this.mediaTimeout);
     this.call?.close(); this.connection?.close(); this.peer?.destroy();
     this.connection = null; this.call = null; this.accepted = false; this.emit('input',0);
