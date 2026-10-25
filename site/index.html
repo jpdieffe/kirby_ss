@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16162b">
+  <meta name="description" content="Kirby Super Star. One adventure, two players. Play together in a private peer-to-peer room.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Kirby Super Star · Together</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="./vendor/peerjs.min.js"></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Kirby Super Star home"><span class="brand-star">✦</span><span>KIRBY <b>SUPER STAR</b><small>THE TOGETHER EDITION</small></span></a>
+    <div class="top-actions"><span class="connection-pill" id="connection"><i></i> Ready to play</span><button class="quiet" id="help-button" aria-label="How to play">?</button></div>
+  </header>
+
+  <main>
+    <section class="lobby" id="lobby">
+      <div class="intro"><div class="eyebrow">AN OLD FAVORITE. A NEW WAY TO PLAY.</div><h1>Small hero.<br><span>Big adventures.</span></h1><p>Grab a friend. Pick a world.<br>A little Dream Land goes a long way.</p><div class="features"><span>✦ 2 players</span><span>↔ Peer to peer</span><span>▰ Phone friendly</span></div></div>
+      <div class="lobby-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><span class="spark s1">✦</span><span class="spark s2">✧</span><span class="spark s3">✦</span><span class="spark s4">·</span><div class="planet"></div><div class="kirby"><i class="foot left"></i><i class="foot right"></i><i class="arm left"></i><i class="arm right"></i><div class="body"><i class="eye left"></i><i class="eye right"></i><i class="cheek left"></i><i class="cheek right"></i><i class="mouth"></i></div></div><span class="art-caption">BETTER WITH A HELPER</span></div>
+      <div class="room-panel">
+        <div class="panel-number">01 <span>LET’S GET TOGETHER</span></div>
+        <h2>Your couch. Anywhere.</h2><p>Host a game and send your friend the room link.</p>
+        <button id="host-button" class="primary big">Create a room <span>↗</span></button>
+        <div class="divider"><span>HAVE AN INVITE?</span></div>
+        <form id="join-form"><label class="sr-only" for="room-code">Room code or invite link</label><div class="join-row"><input id="room-code" placeholder="Enter room code" autocomplete="off" autocapitalize="characters" spellcheck="false" required maxlength="250"><button type="submit" id="join-button">Join →</button></div></form>
+        <button id="solo-button" class="text-button">Just me for now <span>→</span></button>
+        <p class="fine">No account. No downloads. Just one shared adventure.</p>
+      </div>
+    </section>
+
+    <section id="play-area" class="play-area" hidden aria-label="Game player">
+      <div class="game-toolbar"><div class="room-info"><span class="live-dot"></span><b id="player-label">PLAYER 1 · KIRBY</b><span id="room-label">Solo adventure</span></div><div class="game-actions"><button id="invite-button" hidden>Invite ↗</button><button id="levels-button">✦ Levels</button><button id="sound-button" aria-pressed="false">Sound on</button><button id="fullscreen-button" aria-label="Enter fullscreen">⛶</button><button id="leave-button">Leave</button></div></div>
+      <div class="console" id="console">
+        <div class="control-wing left-wing"><button class="shoulder" data-button="10">L</button><div class="dpad" id="dpad" aria-label="Directional pad" role="group"><span class="up">▲</span><span class="left">◀</span><span class="center">✦</span><span class="right">▶</span><span class="down">▼</span></div><span class="control-caption">MOVE</span></div>
+        <div class="screen" id="screen"><div id="emulator"></div><video id="remote-video" playsinline autoplay muted hidden></video><div id="screen-message" class="screen-message"><span class="loading-star">✦</span><b id="screen-status">Warming up Dream Land…</b><small id="screen-detail">The first start can take a few moments.</small></div><button id="resume-video" class="primary video-unlock" hidden>Tap to watch & enable sound</button></div>
+        <div class="control-wing right-wing"><button class="shoulder" data-button="11">R</button><div class="face-buttons"><button class="face x" data-button="9">X</button><button class="face y" data-button="1">Y</button><button class="face a" data-button="8">A</button><button class="face b" data-button="0">B</button></div><span class="control-caption">A · HELPER &nbsp; B · JUMP</span></div>
+        <div class="system-buttons"><button data-button="2">SELECT</button><button data-button="3">START</button></div>
+      </div>
+      <div class="game-bottom"><span id="game-hint">Arrows to move · Z = B / jump · X = A / helper · S = Y / inhale · Enter = Start</span><span id="latency">LOCAL PLAY</span></div>
+    </section>
+
+    <section class="adventure-section" id="adventure-section"><div class="section-heading"><div><div class="eyebrow">LESS MENU. MORE ADVENTURE.</div><h2>Your shortcuts to Dream Land.</h2></div><span class="small-label">THE LEVEL LAUNCHER</span></div><div class="adventure-grid"><div class="adventure-card pink"><span class="card-art">✿</span><span class="card-index">01 / DISCOVER</span><h3>Find your favorite spot.</h3><p>Start an adventure in the game, then open Levels.</p></div><div class="adventure-card purple"><span class="card-art">✦</span><span class="card-index">02 / BOOKMARK</span><h3>Save a little magic.</h3><p>Give that moment a name and save a checkpoint.</p></div><div class="adventure-card gold"><span class="card-art">↗</span><span class="card-index">03 / JUMP BACK IN</span><h3>Straight to the good part.</h3><p>Launch your saved levels instantly, solo or together.</p></div></div></section>
+    <p id="status" class="status" role="status" aria-live="polite">Player one is Kirby. Player two joins as the helper.</p>
+  </main>
+  <footer><span>MADE FOR A LITTLE MORE TOGETHER TIME.</span><a href="https://github.com/jpdieffe/kirby_ss" target="_blank" rel="noreferrer">Project & setup ↗</a></footer>
+
+  <div class="rotate-hint" id="rotate-hint"><span>↻</span><h2>A wider world awaits.</h2><p>Turn your phone sideways for the game and controls.</p><button id="portrait-continue">Continue in portrait</button></div>
+
+  <dialog id="levels-dialog"><div class="dialog-heading"><div><div class="eyebrow">PICK YOUR NEXT ADVENTURE</div><h2>Level launcher</h2></div><button data-close aria-label="Close level launcher">✕</button></div><p>Jump into a fresh adventure, or revisit your own checkpoints. Loading a shortcut also restores its lives and progress.</p><div id="checkpoint-list" class="checkpoint-list"></div><form id="save-form"><label for="checkpoint-name">Bookmark the current moment</label><div class="join-row"><input id="checkpoint-name" placeholder="e.g. Spring Breeze · Green Greens" maxlength="64" required><button id="save-checkpoint" class="primary">Save</button></div></form><div class="dialog-bottom"><label class="file-button">Import checkpoint<input type="file" id="import-checkpoint" accept=".json,application/json" hidden></label><small>Saved on this browser. Export a backup to keep it.</small></div></dialog>
+  <dialog id="help-dialog"><div class="dialog-heading"><h2>A quick field guide.</h2><button data-close aria-label="Close help">✕</button></div><h3>Two players, one game</h3><p>Create a room, then send its link to a friend. Keep the host’s tab open and visible. Kirby needs to inhale an enemy and gain an ability, then press A to create a helper for player two.</p><h3>Controls</h3><p>Arrows / D-pad: move · B / Z: jump · Y / S: inhale or attack · A / X: create helper · X / A: special action · L / Q and R / W: guard · Enter: Start · Shift: Select. A standard Bluetooth or USB gamepad also works.</p><h3>On a phone</h3><p>Rotate to landscape and use both thumbs. Tap Sound to enable audio. Android can request fullscreen and landscape lock. On iPhone, rotate manually; Add to Home Screen gives the game more space.</p><h3>About rooms</h3><p>The host streams the game and receives your controls directly over WebRTC. A public PeerJS service introduces the two browsers. Some mobile and restricted networks need a TURN relay.</p><details><summary>Connection settings</summary><p>Optional: use your own signaling server or TURN relay. These settings apply to the next room and stay in memory for this tab only.</p><form id="network-form"><label>PeerServer host<input name="host" placeholder="0.peerjs.com"></label><label>PeerServer port<input name="port" type="number" min="1" max="65535" placeholder="443"></label><label>PeerServer path<input name="path" placeholder="/"></label><label>TURN URL<input name="turn" placeholder="turn:your-server.example:3478"></label><label>TURN username<input name="username" autocomplete="off"></label><label>TURN credential<input name="credential" type="password" autocomplete="off"></label><button class="primary">Apply settings</button></form></details><p class="fine">Unofficial fan project. Kirby and Kirby Super Star belong to Nintendo / HAL Laboratory. EmulatorJS and Snes9x power the game.</p></dialog>
+</body>
+</html>
