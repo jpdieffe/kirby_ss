@@ -106,7 +106,7 @@ export class Room {
         this.lastSeq = data.seq; this.lastInput = performance.now(); this.remoteMask = data.mask; this.emit('input',data.mask);
       } else if (data.type === 'ping' && Number.isFinite(data.at)) this.send({type:'pong',at:data.at});
       else if (data.type === 'pong' && Number.isFinite(data.at)) this.emit('latency',Math.max(0,Date.now()-data.at));
-      else if (!this.isHost && data.type === 'state' && typeof data.text === 'string') this.emit('status',data.text.slice(0,180));
+      else if (!this.isHost && data.type === 'state' && typeof data.text === 'string') this.emit('status',data.text.slice(0,180),data.phase === 'audio-blocked' || data.phase === 'playing' ? data.phase : undefined);
     });
     connection.on('close', () => {
       if (this.connection !== connection) return;
@@ -121,7 +121,7 @@ export class Room {
   }
   send(data) { if (this.connection?.open) { try { this.connection.send(data); } catch {} } }
   setInput(mask) { this.mask = mask; if (this.accepted && !this.isHost) this.send({type:'input',mask,seq:this.seq++}); }
-  broadcast(text) { this.send({type:'state',text}); }
+  broadcast(text, phase) { this.send({type:'state',text,phase}); }
   stream(media) {
     if (!this.isHost || !this.accepted || !this.connection?.open) return;
     this.call?.close();

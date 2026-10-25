@@ -14,6 +14,24 @@ let muted = false;
 let busy = false;
 let wakeLock;
 let remoteStream;
+let videoStartTimeout;
+let hostNeedsAudio = false;
+function announceHostAudio() {
+  if (mode !== 'host' || !room?.accepted) return;
+  room.broadcast(game.audioBlocked ? 'The host needs to tap “Enable game sound” on their phone to start the game.' : 'Connected. Player two controls the helper.',game.audioBlocked ? 'audio-blocked' : 'playing');
+}
+function showHostAudioWait() {
+  screenMessage('Waiting for a tap on the host phone.','Ask the host to tap “Enable game sound”. Your room is connected.');
+  status('The host needs to enable game sound before play can begin.');
+}
+function refreshHostAudio() {
+  if (!game.ready || mode === 'guest') return;
+  $('#resume-audio').hidden = !game.audioBlocked || muted;
+  $('#sound-button').textContent = muted ? 'Sound off' : game.audioBlocked ? 'Enable sound' : 'Sound on';
+  $('#sound-button').setAttribute('aria-pressed',String(muted));
+  announceHostAudio();
+}
+game.onAudioStateChange = refreshHostAudio;
 const controls = setupControls(mask => { if (mode === 'guest') room?.setInput(mask); else game.input(0,mask); });
 function status(message, kind = '') { $('#status').textContent = message; $('#status').className = `status ${kind}`; }
 function connection(message) { $('#connection').lastChild.textContent = ` ${message}`; }
@@ -35,34 +53,57 @@ function busyLobby(value) {
   busy = value;
   for (const id of ['host-button','solo-button','join-button']) $(`#${id}`).disabled = value;
 }
-async function streamToGuest() {
+function streamToGuest() {
   if (!game.ready || !room?.accepted || mode !== 'host') return;
-  try { await game.resumeAudio(); room.stream(game.capture()); room.broadcast('Connected. Player two controls the helper.'); }
+  try { game.resumeAudio(); room.stream(game.capture()); announceHostAudio(); }
   catch (e) { error(e); room.broadcast(e.message); }
 }
 function makeRoom() {
   const instance = new Room({
-    status: message => { if (room === instance) status(message); },
-    error: message => { if (room === instance) { error(message); connection('Connection needs attention'); } },
+    status: (message, phase) => {
+      if (room !== instance) return;
+      status(message);
+      if (mode !== 'guest') return;
+      if (phase) hostNeedsAudio = phase === 'audio-blocked';
+      if (hostNeedsAudio) showHostAudioWait();
+      else if (!remoteStream || $('#remote-video').readyState < 2) screenMessage('Room connected. Waiting for game…',message);
+      else if (phase === 'playing') $('#screen-message').hidden = true;
+    },
+    error: message => {
+      if (room === instance) {
+        error(message); connection('Connection needs attention');
+        if (mode === 'guest' && !remoteStream) screenMessage('Could not connect to the game.',message);
+      }
+    },
     input: mask => { if (room === instance && mode === 'host') game.input(1,document.hidden || document.querySelector('dialog[open]') ? 0 : mask); },
     connected: () => {
       if (room !== instance) return;
       connection('Two players connected');
       status(mode === 'host' ? 'Your helper is here! Inhale an enemy, then press A to create a helper.' : 'Connected! Waiting for the host’s game stream…','success');
-      if (mode === 'host') streamToGuest();
+      if (mode === 'host') {
+        if (!game.ready) room.broadcast('The host is still loading the game. Keep the host tab open.');
+        streamToGuest();
+      } else screenMessage('Room connected. Waiting for game…','Keep the host’s game visible. Video can start before sound is enabled.');
     },
     stream: stream => {
       if (room !== instance || mode !== 'guest') return;
       remoteStream = stream;
       const video = $('#remote-video'); video.srcObject = stream; video.muted = true;
+      clearTimeout(videoStartTimeout);
+      videoStartTimeout = setTimeout(() => {
+        if (room === instance && !hostNeedsAudio && video.readyState < 2) screenMessage('Connected, but no game picture yet.','Ask the host to return to the game. If this persists, leave and try a new room on Wi-Fi.');
+      },20000);
+      video.onplaying = () => { clearTimeout(videoStartTimeout); if (hostNeedsAudio) showHostAudioWait(); else $('#screen-message').hidden = true; };
       video.play().catch(() => { $('#resume-video').hidden = false; });
-      video.onplaying = () => { $('#screen-message').hidden = true; };
       $('#resume-video').hidden = false;
       status('You’re player two. Ask Kirby to create a helper with A, then jump in.','success');
+      if (hostNeedsAudio) showHostAudioWait();
     },
     mediaClosed: () => { if (room === instance && mode === 'guest') screenMessage('Game stream stopped.','The host may have left. Leave and join again to reconnect.'); },
     disconnected: () => {
       if (room !== instance) return;
+      clearTimeout(videoStartTimeout);
+      hostNeedsAudio = false;
       controls.clear(); game.input(1,0);
       connection(mode === 'host' ? 'Waiting for player two' : 'Disconnected');
       $('#latency').textContent = 'DISCONNECTED';
@@ -101,9 +142,9 @@ async function launch(modeToUse, code) {
     // Let EmulatorJS show its own progress, then remove its loading UI on start.
     $('#screen-message').hidden = true;
     await game.start();
-    await game.resumeAudio();
+    game.resumeAudio();
     if (document.hidden) game.pause(true);
-    if (mode === 'host') await streamToGuest();
+    if (mode === 'host') streamToGuest();
   } catch (e) {
     room?.close(); room = null;
     connection('Could not start');
@@ -140,14 +181,20 @@ async function enableVideo() {
   muted = false; $('#sound-button').textContent = 'Sound on'; $('#sound-button').setAttribute('aria-pressed','false'); $('#resume-video').hidden = true;
 }
 $('#resume-video').addEventListener('click',guard(enableVideo));
+$('#resume-audio').addEventListener('click',() => game.resumeAudio());
 $('#sound-button').addEventListener('click',guard(async () => {
   if (mode === 'guest') {
     if (!remoteStream) { status('Sound will be available when the host’s stream arrives.'); return; }
     if ($('#remote-video').muted) { await enableVideo(); return; }
     muted = true; $('#remote-video').muted = true;
   } else {
-    await game.resumeAudio(); muted = !muted; game.setMuted(muted);
+    const needsAudio = game.audioBlocked;
+    game.resumeAudio();
+    muted = needsAudio ? false : !muted;
+    game.setMuted(muted);
+    refreshHostAudio();
     if (mode === 'host' && muted) status('Game sound is muted for both players.');
+    return;
   }
   $('#sound-button').textContent = muted ? 'Sound off' : 'Sound on'; $('#sound-button').setAttribute('aria-pressed',String(muted));
 }));
@@ -235,6 +282,6 @@ document.addEventListener('visibilitychange',() => {
   if (!document.hidden) wake();
 });
 window.addEventListener('pagehide',() => { room?.close(); game.release(); game.stopCapture(); wakeLock?.release(); });
-window.addEventListener('pointerdown',() => { if (game.ready && mode !== 'guest') game.resumeAudio(); },{passive:true});
+window.addEventListener('pointerdown',event => { if (game.ready && mode !== 'guest' && !event.target.closest('#sound-button')) game.resumeAudio(); },{passive:true});
 const invite = parseRoomCode(new URLSearchParams(location.hash.slice(1)).get('room') || '');
 if (invite) { $('#room-code').value = invite; status('You have an invite! Tap Join to play as the helper.'); }

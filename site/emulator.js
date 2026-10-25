@@ -5,7 +5,7 @@ export const ROM_URL = './roms/kirby-super-star.zip';
 // Capture only the emulator's Web Audio output; no microphone or screen permission.
 const audioTaps = new Map();
 let patched = false;
-function installAudioTap() {
+function installAudioTap(onStateChange) {
   if (patched || !window.AudioNode) return;
   patched = true;
   const connect = AudioNode.prototype.connect;
@@ -17,6 +17,7 @@ function installAudioTap() {
         if (!tap) {
           tap = this.context.createMediaStreamDestination();
           audioTaps.set(this.context, tap);
+          this.context.addEventListener('statechange', onStateChange);
         }
         connect.call(this, tap, args[0] || 0, 0);
       } catch (error) { console.warn('Audio stream capture unavailable', error); }
@@ -28,7 +29,7 @@ export class Game {
   constructor() { this.ready = false; this.masks = [0, 0]; this.startPromise = null; this.stream = null; }
   start() {
     if (this.startPromise) return this.startPromise;
-    installAudioTap();
+    installAudioTap(() => this.onAudioStateChange?.());
     this.startPromise = new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('The emulator took too long to start. Reload and try again.')), 90000);
       Object.assign(window, {
@@ -46,6 +47,7 @@ export class Game {
           this.manager = this.emulator.gameManager;
           this.manager.functions.setKeyboardEnabled(0);
           this.ready = true;
+          this.onAudioStateChange?.();
           resolve();
         },
       });
@@ -61,7 +63,15 @@ export class Game {
     this.masks[player] = applyMask(this.masks[player], mask, (button, value) => this.manager.simulateInput(player, button, value));
   }
   release() { this.input(0, 0); this.input(1, 0); }
-  async resumeAudio() { await Promise.allSettled([...audioTaps.keys()].map(context => context.resume())); }
+  get audioBlocked() { return [...audioTaps.keys()].some(context => context.state !== 'running' && context.state !== 'closed'); }
+  resumeAudio() {
+    // Mobile browsers may leave resume() pending until another user gesture.
+    // Request audio activation, but never gate video or room startup on it.
+    for (const context of audioTaps.keys()) {
+      if (context.state === 'running' || context.state === 'closed') continue;
+      try { context.resume().catch(() => {}); } catch {}
+    }
+  }
   setMuted(muted) { if (this.ready) this.emulator.setVolume(muted ? 0 : .8); }
   pause(value) { if (this.ready) { this.release(); this.manager.toggleMainLoop(value ? 0 : 1); } }
   capture() {

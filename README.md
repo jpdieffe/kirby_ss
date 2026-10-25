@@ -32,6 +32,8 @@ Both players also have multitouch controls and support for one standard-mapped U
 
 Use landscape in a current Android Chrome or iOS Safari browser. Touch controls sit to the left and right of the game. The guest taps the audio prompt to allow playback. Android can request fullscreen and orientation lock where available. iPhone users rotate manually and can use Safari's **Add to Home Screen** for more space. The app requests a screen wake lock where supported.
 
+If the host browser suspends audio, it shows **Tap to enable game sound**. Room/media setup does not wait on audio permission, but the emulator may need that tap before it produces game frames. The guest sees an instruction asking the host to tap, and play then starts in the same room. Connection failures appear in the guest's game screen instead of leaving the initial waiting message visible.
+
 Desktop Chromium and phone-sized layouts are covered by automated tests. Actual Android/iPhone hardware and cross-carrier networks still need device testing. This is an online site, not an offline PWA.
 
 ## Level launcher
@@ -66,9 +68,12 @@ npm run check
 npm test
 npm run test:browser
 npm run test:network
+npm run test:mobile-host
 ```
 
 Browser tests use an installed Google Chrome via Playwright. The network test needs internet access to the signaling service. It creates separate browser contexts, checks video/audio tracks and visible game pixels, validates guest input arriving at port two, rejects a third player, and verifies disconnect release and rejoining. Screenshots are written under ignored `test-results/`.
+
+The mobile-host regression test uses a phone viewport, normal autoplay restrictions, and a deliberately suspended host AudioContext whose resume promise stays pending. It checks that the media connection and host-tap instructions reach the guest, then checks video/audio startup after the host taps without recreating the room. This is a simulated browser condition, not a physical Android device test.
 
 ## Deploy
 
